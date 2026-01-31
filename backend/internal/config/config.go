@@ -66,6 +66,6 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Config Validation failed")
 	}
-
-	return &Config{}, nil
+	logger.Println(mainConfig)
+	return mainConfig, nil
 }
