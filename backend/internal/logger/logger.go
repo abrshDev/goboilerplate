@@ -7,11 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter"
+	"github.com/abrshDev/internal/config"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/pkgerrors"
-	"github.com/sriniously/go-boilerplate/internal/config"
 )
 
 // LoggerService manages New Relic integration and logger creation
@@ -79,32 +78,22 @@ func NewLoggerWithService(cfg *config.ObservabilityConfig, loggerService *Logger
 		logLevel = zerolog.InfoLevel
 	}
 
-	// Don't set global level - let each logger have its own level
 	zerolog.TimeFieldFormat = "2006-01-02 15:04:05"
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
 	var writer io.Writer
 
 	// Setup base writer
-	var baseWriter io.Writer
 	if cfg.IsProduction() && cfg.Logging.Format == "json" {
-		// In production, write to stdout
-		baseWriter = os.Stdout
-
-		// Wrap with New Relic zerologWriter for log forwarding in production
-		if loggerService != nil && loggerService.nrApp != nil {
-			nrWriter := zerologWriter.New(baseWriter, loggerService.nrApp)
-			writer = nrWriter
-		} else {
-			writer = baseWriter
-		}
+		// Production: write structured logs to stdout
+		writer = os.Stdout
 	} else {
-		// Development mode - use console writer
-		consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "2006-01-02 15:04:05"}
-		writer = consoleWriter
+		// Development: pretty console logs
+		writer = zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: "2006-01-02 15:04:05",
+		}
 	}
-
-	// Note: New Relic log forwarding is now handled automatically by zerologWriter integration
 
 	logger := zerolog.New(writer).
 		Level(logLevel).
@@ -128,7 +117,6 @@ func WithTraceContext(logger zerolog.Logger, txn *newrelic.Transaction) zerolog.
 		return logger
 	}
 
-	// Get trace metadata from transaction
 	metadata := txn.GetTraceMetadata()
 
 	return logger.With().
@@ -145,9 +133,7 @@ func NewPgxLogger(level zerolog.Level) zerolog.Logger {
 		FormatFieldValue: func(i any) string {
 			switch v := i.(type) {
 			case string:
-				// Clean and format SQL for better readability
 				if len(v) > 200 {
-					// Truncate very long SQL statements
 					return v[:200] + "..."
 				}
 				return v
