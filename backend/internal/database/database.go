@@ -29,6 +29,8 @@ type multiTracer struct {
 	tracers []any
 }
 
+const DatabasePingTimeout = 10
+
 // TraceQueryStart implements pgx tracer interface
 func (mt *multiTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
 	for _, tracer := range mt.tracers {
@@ -114,4 +116,8 @@ func New(cfg *config.Config, logger *zerolog.Logger, loggerService *loggerConfig
 	return database, nil
 }
 
-const DatabasePingTimeout = 10
+func (db *Database) close() error {
+	db.log.Info().Msg("closing database connection pool")
+	db.Pool.Close()
+	return nil
+}
